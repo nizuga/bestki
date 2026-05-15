@@ -4,7 +4,7 @@ import type { AnyCard } from '@/types';
 interface RendererProps {
   card: AnyCard;
   submitted: boolean;
-  onSubmit: () => void;
+  onSubmit: (isCorrect?: boolean) => void;
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -67,7 +67,16 @@ function MultipleChoiceCard({ card, submitted, onSubmit }: RendererProps) {
         </button>
       ))}
       {!submitted && (
-        <button onClick={onSubmit} disabled={selected.length === 0} className={verifyBtn}>
+        <button
+          onClick={() => {
+            const allCorrect =
+              correct.every((i) => selected.includes(i)) &&
+              selected.every((i) => correct.includes(i));
+            onSubmit(allCorrect);
+          }}
+          disabled={selected.length === 0}
+          className={verifyBtn}
+        >
           Verificar
         </button>
       )}
@@ -103,7 +112,8 @@ function WrittenCard({ card, submitted, onSubmit }: RendererProps) {
         disabled={submitted}
         placeholder="Escribe tu respuesta…"
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && e.ctrlKey && !submitted && input.trim()) onSubmit();
+          if (e.key === 'Enter' && e.ctrlKey && !submitted && input.trim())
+            onSubmit(accepted_answers.some((a) => normalize(a) === normalize(input)));
         }}
       />
       {submitted && (
@@ -115,7 +125,11 @@ function WrittenCard({ card, submitted, onSubmit }: RendererProps) {
         </div>
       )}
       {!submitted && (
-        <button onClick={onSubmit} disabled={!input.trim()} className={verifyBtn}>
+        <button
+          onClick={() => onSubmit(accepted_answers.some((a) => normalize(a) === normalize(input)))}
+          disabled={!input.trim()}
+          className={verifyBtn}
+        >
           Verificar
         </button>
       )}
@@ -186,7 +200,11 @@ function FillBlankCard({ card, submitted, onSubmit }: RendererProps) {
         </p>
       )}
       {!submitted && (
-        <button onClick={onSubmit} disabled={!allFilled} className={verifyBtn}>
+        <button
+          onClick={() => onSubmit(blanks.every((_, i) => blankCorrect(i)))}
+          disabled={!allFilled}
+          className={verifyBtn}
+        >
           Verificar
         </button>
       )}
@@ -262,7 +280,10 @@ function OrderStepsCard({ card, submitted, onSubmit }: RendererProps) {
         );
       })}
       {!submitted && (
-        <button onClick={onSubmit} className={verifyBtn}>
+        <button
+          onClick={() => onSubmit(order.every((stepIdx, pos) => stepIdx === pos))}
+          className={verifyBtn}
+        >
           Verificar orden
         </button>
       )}
@@ -362,7 +383,11 @@ function MatchPairsCard({ card, submitted, onSubmit }: RendererProps) {
         </div>
       </div>
       {!submitted && (
-        <button onClick={onSubmit} disabled={!allMatched} className={verifyBtn}>
+        <button
+          onClick={() => onSubmit(left.every((_, i) => isMatchCorrect(i)))}
+          disabled={!allMatched}
+          className={verifyBtn}
+        >
           Verificar
         </button>
       )}
@@ -393,7 +418,7 @@ function TrueFalseCard({ card, submitted, onSubmit }: RendererProps) {
   function choose(v: boolean) {
     if (submitted) return;
     setSelected(v);
-    onSubmit();
+    onSubmit(v === answer);
   }
 
   return (
@@ -465,7 +490,8 @@ function PredictOutputCard({ card, submitted, onSubmit }: RendererProps) {
           disabled={submitted}
           placeholder="Escribe la salida esperada…"
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && e.ctrlKey && !submitted && input.trim()) onSubmit();
+            if (e.key === 'Enter' && e.ctrlKey && !submitted && input.trim())
+              onSubmit(normalize(input) === normalize(expected_output));
           }}
         />
       </div>
@@ -485,7 +511,11 @@ function PredictOutputCard({ card, submitted, onSubmit }: RendererProps) {
         </div>
       )}
       {!submitted && (
-        <button onClick={onSubmit} disabled={!input.trim()} className={verifyBtn}>
+        <button
+          onClick={() => onSubmit(normalize(input) === normalize(expected_output))}
+          disabled={!input.trim()}
+          className={verifyBtn}
+        >
           Verificar
         </button>
       )}

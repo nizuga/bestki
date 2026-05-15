@@ -88,9 +88,14 @@ export default function Decks() {
     <section>
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-2xl font-semibold">Mis mazos</h1>
-        <Button onClick={openCreate} size="sm">
-          + Nuevo
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => navigate('/import')} size="sm" variant="ghost">
+            📥 Importar
+          </Button>
+          <Button onClick={openCreate} size="sm">
+            + Nuevo
+          </Button>
+        </div>
       </div>
 
       {error && (

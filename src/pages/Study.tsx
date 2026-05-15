@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useStudyStore } from '@/store/useStudyStore';
 import FlashCard from '@/components/cards/FlashCard';
@@ -27,6 +27,9 @@ export default function Study() {
     reset,
   } = useStudyStore();
 
+  const [suggestion, setSuggestion] = useState<{ index: number; rating: CardRating } | null>(null);
+  const suggestedRating = suggestion?.index === currentIndex ? suggestion.rating : undefined;
+
   useEffect(() => {
     startSession(deckId);
     return () => {
@@ -37,6 +40,11 @@ export default function Study() {
   const card = queue[currentIndex];
   const totalInSession = queue.length;
   const cardProgress = card ? progress[card.id] : undefined;
+
+  function handleSubmit(isCorrect?: boolean) {
+    if (isCorrect !== undefined) setSuggestion({ index: currentIndex, rating: isCorrect ? 4 : 1 });
+    flip();
+  }
 
   // ── Loading ──────────────────────────────────────────────────────────────
   if (phase === 'loading') {
@@ -128,11 +136,11 @@ export default function Study() {
           question={card.question}
           answer={(card.content as { back: string }).back}
           flipped={flipped}
-          onFlip={flip}
+          onFlip={handleSubmit}
         />
       ) : (
         <div className="bg-white dark:bg-white/5 rounded-2xl p-4 shadow-sm">
-          <CardRenderer card={card} submitted={flipped} onSubmit={flip} />
+          <CardRenderer card={card} submitted={flipped} onSubmit={handleSubmit} />
         </div>
       )}
 
@@ -145,7 +153,11 @@ export default function Study() {
 
       {/* Rating buttons — only after answering */}
       {flipped ? (
-        <RatingButtons progress={cardProgress} onRate={(r: CardRating) => rate(r)} />
+        <RatingButtons
+          progress={cardProgress}
+          suggested={suggestedRating}
+          onRate={(r: CardRating) => rate(r)}
+        />
       ) : (
         <div className="h-[104px]" />
       )}
