@@ -20,7 +20,7 @@ export function sm2(
     repetitions = 0;
     interval_days = 1;
   } else {
-    if (repetitions === 0) interval_days = 1;
+    if (repetitions === 0) interval_days = q === 3 ? 4 : 1;
     else if (repetitions === 1) interval_days = 6;
     else interval_days = Math.round(interval_days * ease_factor);
 

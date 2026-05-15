@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useStudyStore } from '@/store/useStudyStore';
 import FlashCard from '@/components/cards/FlashCard';
+import CardRenderer from '@/components/study/CardRenderer';
 import ProgressBar from '@/components/study/ProgressBar';
 import RatingButtons from '@/components/study/RatingButtons';
 import Button from '@/components/ui/Button';
@@ -95,9 +96,6 @@ export default function Study() {
   if (!card) return null;
 
   const isFlashcard = card.type === 'flashcard';
-  const answer = isFlashcard
-    ? (card.content as { back: string }).back
-    : '(tipo de tarjeta no soportado aún)';
 
   return (
     <section className="space-y-5">
@@ -110,28 +108,46 @@ export default function Study() {
           ← Salir
         </button>
         <span className="text-xs bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 px-2 py-1 rounded-full font-medium">
-          {card.type.replace('_', ' ')}
+          {card.type.replace(/_/g, ' ')}
         </span>
       </div>
 
       {/* Progress */}
       <ProgressBar current={currentIndex} total={totalInSession} />
 
-      {/* Card */}
-      <FlashCard question={card.question} answer={answer} flipped={flipped} onFlip={flip} />
+      {/* Question */}
+      {!isFlashcard && (
+        <div className="bg-white dark:bg-white/5 rounded-2xl p-4 shadow-sm">
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{card.question}</p>
+        </div>
+      )}
 
-      {/* Explanation (shown after flip) */}
+      {/* Card — flashcard uses flip UI; other types use interactive renderer */}
+      {isFlashcard ? (
+        <FlashCard
+          question={card.question}
+          answer={(card.content as { back: string }).back}
+          flipped={flipped}
+          onFlip={flip}
+        />
+      ) : (
+        <div className="bg-white dark:bg-white/5 rounded-2xl p-4 shadow-sm">
+          <CardRenderer card={card} submitted={flipped} onSubmit={flip} />
+        </div>
+      )}
+
+      {/* Explanation (shown after answering) */}
       {flipped && card.explanation && (
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 rounded-xl px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
           💡 {card.explanation}
         </div>
       )}
 
-      {/* Rating buttons — only after flip */}
+      {/* Rating buttons — only after answering */}
       {flipped ? (
         <RatingButtons progress={cardProgress} onRate={(r: CardRating) => rate(r)} />
       ) : (
-        <div className="h-[104px]" /> // reserve space so layout doesn't jump
+        <div className="h-[104px]" />
       )}
     </section>
   );
