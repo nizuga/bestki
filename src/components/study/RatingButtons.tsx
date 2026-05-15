@@ -4,6 +4,7 @@ import type { CardProgress, CardRating } from '@/types';
 interface Props {
   progress: CardProgress | undefined;
   onRate: (rating: CardRating) => void;
+  suggested?: CardRating;
   disabled?: boolean;
 }
 
@@ -49,7 +50,7 @@ const DUMMY_PROGRESS: CardProgress = {
   status: 'new',
 };
 
-export default function RatingButtons({ progress, onRate, disabled }: Props) {
+export default function RatingButtons({ progress, onRate, suggested, disabled }: Props) {
   const base = progress ?? DUMMY_PROGRESS;
 
   return (
@@ -59,15 +60,21 @@ export default function RatingButtons({ progress, onRate, disabled }: Props) {
         {RATINGS.map(({ rating, label, color, fixedSub }) => {
           const next = sm2(base, rating);
           const sub = fixedSub ?? intervalLabel(next.interval_days);
+          const isSuggested = suggested === rating;
           return (
             <button
               key={rating}
               onClick={() => onRate(rating)}
               disabled={disabled}
-              className={`flex flex-col items-center gap-1 py-3 rounded-xl border-2 bg-white dark:bg-white/5 transition-colors disabled:opacity-40 ${color}`}
+              className={`relative flex flex-col items-center gap-1 py-3 rounded-xl border-2 bg-white dark:bg-white/5 transition-colors disabled:opacity-40 ${color} ${isSuggested ? 'ring-2 ring-offset-1 ring-current' : ''}`}
             >
               <span className="text-sm font-semibold">{label}</span>
               <span className="text-[10px] opacity-70">{sub}</span>
+              {isSuggested && (
+                <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-current text-white leading-none">
+                  ★
+                </span>
+              )}
             </button>
           );
         })}
