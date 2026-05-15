@@ -10,7 +10,7 @@ import SettingsPage from '@/pages/Settings';
 
 export default function App() {
   return (
-    <div className="min-h-screen pb-16">
+    <div className="min-h-screen pb-20">
       <main className="mx-auto max-w-md px-4 py-6">
         <Routes>
           <Route path="/" element={<Home />} />
