@@ -505,7 +505,7 @@ function PredictOutputCard({ card, submitted, onSubmit }: RendererProps) {
             {isCorrect ? '✓ ¡Correcto!' : '✗ Incorrecto'}
           </p>
           <p className="text-xs text-gray-500">Salida correcta:</p>
-          <pre className="text-xs font-mono mt-1 text-gray-700 dark:text-gray-300">
+          <pre className="text-xs font-mono mt-1 text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">
             {expected_output}
           </pre>
         </div>
