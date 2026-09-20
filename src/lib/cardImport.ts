@@ -117,6 +117,15 @@ function validateContent(
               message: 'forma { position: number, answer: string }',
             });
         });
+        if (typeof content.template === 'string') {
+          const markers = content.template.match(/_{2,}|\{\{[^}]*\}\}/g)?.length ?? 0;
+          if (markers !== content.blanks.length)
+            errors.push({
+              index,
+              field: 'content.template',
+              message: `debe tener un "___" por cada hueco (${markers} marcador(es) vs ${content.blanks.length} hueco(s))`,
+            });
+        }
       }
       break;
     }

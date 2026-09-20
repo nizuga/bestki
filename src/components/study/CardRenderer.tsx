@@ -138,13 +138,20 @@ function WrittenCard({ card, submitted, onSubmit }: RendererProps) {
 }
 
 // ── Fill Blank ────────────────────────────────────────────────────────────────
+// Acepta varios marcadores de hueco: "___", "____", "{{algo}}"
+const BLANK_RE = /_{2,}|\{\{[^}]*\}\}/g;
+
 function FillBlankCard({ card, submitted, onSubmit }: RendererProps) {
   const { template, blanks } = card.content as unknown as {
     template: string;
     blanks: Array<{ position: number; answer: string }>;
   };
-  const parts = template.split('___');
-  const [inputs, setInputs] = useState<string[]>(blanks.map(() => ''));
+  const parts = template.split(BLANK_RE);
+  // Huecos que sí tienen marcador dentro del template
+  const inlineSlots = Math.min(parts.length - 1, blanks.length);
+  // Huecos declarados en `blanks` sin marcador en el template: se muestran al final
+  const trailingSlots = blanks.length - inlineSlots;
+  const [inputs, setInputs] = useState<string[]>(() => blanks.map(() => ''));
 
   function setInput(i: number, v: string) {
     setInputs((prev) => {
@@ -158,7 +165,28 @@ function FillBlankCard({ card, submitted, onSubmit }: RendererProps) {
     return inputs[i]?.trim().toLowerCase() === blanks[i]?.answer.trim().toLowerCase();
   }
 
-  const allFilled = inputs.every((v) => v.trim());
+  const allCorrect = blanks.every((_, i) => blankCorrect(i));
+
+  function renderSlot(i: number) {
+    if (submitted) {
+      return (
+        <span
+          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-semibold border ${blankCorrect(i) ? 'bg-green-100 border-green-400 text-green-800 dark:bg-green-900/30 dark:text-green-200' : 'bg-red-100 border-red-400 text-red-800 dark:bg-red-900/30 dark:text-red-200'}`}
+        >
+          {inputs[i]?.trim() || '—'}
+          {!blankCorrect(i) && <span className="text-gray-400">→ {blanks[i].answer}</span>}
+        </span>
+      );
+    }
+    return (
+      <input
+        className="border-b-2 border-primary-400 bg-transparent focus:outline-none text-sm px-1 w-24 text-center"
+        value={inputs[i] ?? ''}
+        onChange={(e) => setInput(i, e.target.value)}
+        placeholder={`hueco ${i + 1}`}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -166,45 +194,28 @@ function FillBlankCard({ card, submitted, onSubmit }: RendererProps) {
         {parts.map((part, i) => (
           <span key={i}>
             {part}
-            {i < blanks.length && (
-              <span className="inline-block align-middle mx-1">
-                {submitted ? (
-                  <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-semibold border ${blankCorrect(i) ? 'bg-green-100 border-green-400 text-green-800 dark:bg-green-900/30 dark:text-green-200' : 'bg-red-100 border-red-400 text-red-800 dark:bg-red-900/30 dark:text-red-200'}`}
-                  >
-                    {inputs[i] || '—'}
-                    {!blankCorrect(i) && (
-                      <span className="text-gray-400">→ {blanks[i].answer}</span>
-                    )}
-                  </span>
-                ) : (
-                  <input
-                    className="border-b-2 border-primary-400 bg-transparent focus:outline-none text-sm px-1 w-24 text-center"
-                    value={inputs[i] ?? ''}
-                    onChange={(e) => setInput(i, e.target.value)}
-                    placeholder={`hueco ${i + 1}`}
-                  />
-                )}
-              </span>
+            {i < inlineSlots && (
+              <span className="inline-block align-middle mx-1">{renderSlot(i)}</span>
             )}
           </span>
         ))}
       </p>
+      {trailingSlots > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {Array.from({ length: trailingSlots }, (_, k) => (
+            <span key={k} className="inline-block align-middle">
+              {renderSlot(inlineSlots + k)}
+            </span>
+          ))}
+        </div>
+      )}
       {submitted && (
-        <p
-          className={`text-sm font-semibold ${blanks.every((_, i) => blankCorrect(i)) ? 'text-green-500' : 'text-red-400'}`}
-        >
-          {blanks.every((_, i) => blankCorrect(i))
-            ? '✓ ¡Todo correcto!'
-            : '✗ Revisa las correcciones marcadas'}
+        <p className={`text-sm font-semibold ${allCorrect ? 'text-green-500' : 'text-red-400'}`}>
+          {allCorrect ? '✓ ¡Todo correcto!' : '✗ Revisa las correcciones marcadas'}
         </p>
       )}
       {!submitted && (
-        <button
-          onClick={() => onSubmit(blanks.every((_, i) => blankCorrect(i)))}
-          disabled={!allFilled}
-          className={verifyBtn}
-        >
+        <button onClick={() => onSubmit(allCorrect)} className={verifyBtn}>
           Verificar
         </button>
       )}
