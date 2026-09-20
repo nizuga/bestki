@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useDecksStore } from '@/store/useDecksStore';
 import Button from '@/components/ui/Button';
 import type { CardType, AnyCard } from '@/types';
+import { countFillBlankMarkers } from '@/lib/fillBlank';
 
 // ── Type metadata ─────────────────────────────────────────────────────────────
 const CARD_TYPES: { type: CardType; label: string; icon: string; desc: string }[] = [
@@ -332,7 +333,8 @@ function WrittenForm({ c, set }: { c: ContentState; set: (p: Partial<ContentStat
 
 function FillBlankForm({ c, set }: { c: ContentState; set: (p: Partial<ContentState>) => void }) {
   const handleTemplate = (tpl: string) => {
-    const count = (tpl.match(/___/g) ?? []).length;
+    // Mismo contador que usan el importador y la vista de estudio.
+    const count = countFillBlankMarkers(tpl);
     const blanks: ContentState['fill_blanks'] = Array.from({ length: count }, (_, i) => ({
       position: i,
       answer: c.fill_blanks[i]?.answer ?? '',
@@ -575,8 +577,13 @@ export default function CardEditor() {
       return 'La respuesta no puede estar vacía.';
     if (cardType === 'multiple_choice' && content.correct.length === 0)
       return 'Marca al menos una opción correcta.';
-    if (cardType === 'fill_blank' && !content.template.trim())
-      return 'Escribe la plantilla con los huecos (___).';
+    if (cardType === 'fill_blank') {
+      if (!content.template.trim()) return 'Escribe la plantilla con los huecos (___).';
+      if (content.fill_blanks.length === 0)
+        return 'La plantilla necesita al menos un hueco marcado con ___.';
+      if (content.fill_blanks.some((b) => !b.answer.trim()))
+        return 'Cada hueco necesita su respuesta.';
+    }
     return null;
   };
 
