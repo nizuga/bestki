@@ -54,10 +54,13 @@ const EXAMPLES = `{
     },
     {
       "type": "fill_blank",
-      "question": "Completa la fórmula del agua",
+      "question": "Completa la frase sobre la fotosíntesis",
       "content": {
-        "template": "H_2_O",
-        "blanks": [{ "position": 0, "answer": "2" }]
+        "template": "Las plantas absorben ___ y liberan ___ durante la fotosíntesis.",
+        "blanks": [
+          { "position": 0, "answer": "CO2" },
+          { "position": 1, "answer": "oxígeno" }
+        ]
       }
     },
     {
@@ -120,6 +123,7 @@ ${TYPES_BLOCK}
 6. Para \`multiple_choice.correct\` usa **índices** de \`options\` (empezando en 0).
 7. Para \`order_steps.correct_order\` debe ser una permutación de índices con la misma longitud que \`steps\`.
 8. Para \`match_pairs\`, \`left[i]\` empareja con \`right[i]\` (misma longitud).
+8b. Para \`fill_blank\`, marca cada hueco en \`template\` con \`___\` (tres guiones bajos). Debe haber **exactamente un \`___\` por cada elemento de \`blanks\`**, en el mismo orden.
 9. \`explanation\` es opcional pero útil — añádela cuando aporte contexto.
 10. Genera entre 10 y 20 tarjetas a menos que se indique otro número.
 

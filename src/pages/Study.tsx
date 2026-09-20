@@ -144,6 +144,16 @@ export default function Study() {
         </div>
       )}
 
+      {/* Skip — always lets you reveal the answer and move on */}
+      {!isFlashcard && !flipped && (
+        <button
+          onClick={() => handleSubmit(false)}
+          className="w-full py-2 text-sm font-medium text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+        >
+          No lo sé — ver respuesta
+        </button>
+      )}
+
       {/* Explanation (shown after answering) */}
       {flipped && card.explanation && (
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 rounded-xl px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
