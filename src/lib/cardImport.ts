@@ -1,4 +1,5 @@
 import type { AnyCard, CardType } from '@/types';
+import { countFillBlankMarkers } from './fillBlank';
 
 export type ImportCard = Pick<AnyCard, 'type' | 'question' | 'content'> & {
   explanation?: string | null;
@@ -118,7 +119,7 @@ function validateContent(
             });
         });
         if (typeof content.template === 'string') {
-          const markers = content.template.match(/_{2,}|\{\{[^}]*\}\}/g)?.length ?? 0;
+          const markers = countFillBlankMarkers(content.template);
           if (markers !== content.blanks.length)
             errors.push({
               index,

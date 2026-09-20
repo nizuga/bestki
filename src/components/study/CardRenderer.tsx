@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { AnyCard } from '@/types';
+import { parseFillBlankTemplate } from '@/lib/fillBlank';
 
 interface RendererProps {
   card: AnyCard;
@@ -138,19 +139,17 @@ function WrittenCard({ card, submitted, onSubmit }: RendererProps) {
 }
 
 // ── Fill Blank ────────────────────────────────────────────────────────────────
-// Acepta varios marcadores de hueco: "___", "____", "{{algo}}"
-const BLANK_RE = /_{2,}|\{\{[^}]*\}\}/g;
-
 function FillBlankCard({ card, submitted, onSubmit }: RendererProps) {
   const { template, blanks } = card.content as unknown as {
     template: string;
     blanks: Array<{ position: number; answer: string }>;
   };
-  const parts = template.split(BLANK_RE);
-  // Huecos que sí tienen marcador dentro del template
-  const inlineSlots = Math.min(parts.length - 1, blanks.length);
-  // Huecos declarados en `blanks` sin marcador en el template: se muestran al final
-  const trailingSlots = blanks.length - inlineSlots;
+  const tokens = parseFillBlankTemplate(template);
+  const markers = tokens.filter((t) => 'blank' in t).length;
+  // Huecos declarados en `blanks` sin marcador en el template. El import los
+  // rechaza, pero tarjetas antiguas pueden tenerlos: se muestran al final para
+  // que nunca queden sin responder.
+  const trailingSlots = Math.max(0, blanks.length - markers);
   const [inputs, setInputs] = useState<string[]>(() => blanks.map(() => ''));
 
   function setInput(i: number, v: string) {
@@ -165,9 +164,13 @@ function FillBlankCard({ card, submitted, onSubmit }: RendererProps) {
     return inputs[i]?.trim().toLowerCase() === blanks[i]?.answer.trim().toLowerCase();
   }
 
-  const allCorrect = blanks.every((_, i) => blankCorrect(i));
+  // `every` sobre un array vacío es `true`: una tarjeta sin huecos declarados
+  // se daría por acertada sin responder nada.
+  const allCorrect = blanks.length > 0 && blanks.every((_, i) => blankCorrect(i));
 
   function renderSlot(i: number) {
+    // Marcador sin respuesta declarada: no hay nada que corregir.
+    if (!blanks[i]) return <span className="text-gray-400 font-mono">____</span>;
     if (submitted) {
       return (
         <span
@@ -191,20 +194,21 @@ function FillBlankCard({ card, submitted, onSubmit }: RendererProps) {
   return (
     <div className="space-y-4">
       <p className="text-sm leading-loose">
-        {parts.map((part, i) => (
-          <span key={i}>
-            {part}
-            {i < inlineSlots && (
-              <span className="inline-block align-middle mx-1">{renderSlot(i)}</span>
-            )}
-          </span>
-        ))}
+        {tokens.map((token, i) =>
+          'text' in token ? (
+            <span key={i}>{token.text}</span>
+          ) : (
+            <span key={i} className="inline-block align-middle mx-1">
+              {renderSlot(token.index)}
+            </span>
+          ),
+        )}
       </p>
       {trailingSlots > 0 && (
         <div className="flex flex-wrap items-center gap-2">
           {Array.from({ length: trailingSlots }, (_, k) => (
             <span key={k} className="inline-block align-middle">
-              {renderSlot(inlineSlots + k)}
+              {renderSlot(markers + k)}
             </span>
           ))}
         </div>
@@ -535,7 +539,14 @@ function PredictOutputCard({ card, submitted, onSubmit }: RendererProps) {
 }
 
 // ── Router ────────────────────────────────────────────────────────────────────
-export default function CardRenderer({ card, submitted, onSubmit }: RendererProps) {
+// Cada sub-componente guarda su propia respuesta en estado local. El `key` por
+// tarjeta lo remonta al cambiar de tarjeta; sin él, dos tarjetas seguidas del
+// mismo tipo comparten estado y la segunda aparece ya contestada.
+export default function CardRenderer(props: RendererProps) {
+  return <CardBody key={props.card.id} {...props} />;
+}
+
+function CardBody({ card, submitted, onSubmit }: RendererProps) {
   switch (card.type) {
     case 'multiple_choice':
       return <MultipleChoiceCard card={card} submitted={submitted} onSubmit={onSubmit} />;

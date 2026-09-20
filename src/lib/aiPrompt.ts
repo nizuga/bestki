@@ -123,7 +123,7 @@ ${TYPES_BLOCK}
 6. Para \`multiple_choice.correct\` usa **índices** de \`options\` (empezando en 0).
 7. Para \`order_steps.correct_order\` debe ser una permutación de índices con la misma longitud que \`steps\`.
 8. Para \`match_pairs\`, \`left[i]\` empareja con \`right[i]\` (misma longitud).
-8b. Para \`fill_blank\`, marca cada hueco en \`template\` con \`___\` (tres guiones bajos). Debe haber **exactamente un \`___\` por cada elemento de \`blanks\`**, en el mismo orden.
+8b. Para \`fill_blank\`, marca cada hueco en \`template\` con \`___\` (tres guiones bajos). Debe haber **exactamente un \`___\` por cada elemento de \`blanks\`**, en el mismo orden. Nunca escribas la respuesta dentro del template (ni \`_Dartmouth_\` ni \`{{Dartmouth}}\`): la respuesta va **solo** en \`blanks[i].answer\`.
 9. \`explanation\` es opcional pero útil — añádela cuando aporte contexto.
 10. Genera entre 10 y 20 tarjetas a menos que se indique otro número.
 

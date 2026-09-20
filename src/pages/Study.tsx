@@ -140,7 +140,15 @@ export default function Study() {
         />
       ) : (
         <div className="bg-white dark:bg-white/5 rounded-2xl p-4 shadow-sm">
-          <CardRenderer card={card} submitted={flipped} onSubmit={handleSubmit} />
+          {/* `key` por posición en la cola: fuerza remontar el sub-componente al
+              cambiar de tarjeta, si no el estado (respuestas escritas, opciones
+              elegidas, barajado) se arrastra a la siguiente del mismo tipo. */}
+          <CardRenderer
+            key={`${currentIndex}-${card.id}`}
+            card={card}
+            submitted={flipped}
+            onSubmit={handleSubmit}
+          />
         </div>
       )}
 
