@@ -18,6 +18,7 @@ interface StudyState {
   reviewed: number;
   correct: number;
   sessionStart: number;
+  error: string | null;
 
   startSession: (deckId?: string) => Promise<void>;
   flip: () => void;
@@ -60,25 +61,41 @@ async function fetchDueCards(
   return { cards: due, progress };
 }
 
-async function upsertStreak(cardsReviewed: number, sessionStart: number) {
+async function upsertStreak(cardsReviewed: number, sessionStart: number): Promise<string | null> {
   const today = todayStr();
   const minutes = Math.round((Date.now() - sessionStart) / 60_000);
 
-  const { data: existing } = await supabase
+  const { data: existing, error: readError } = await supabase
     .from('streaks')
     .select('*')
     .eq('date', today)
     .maybeSingle();
 
+  if (readError) return readError.message;
+
   const prev = existing as { id: string; cards_reviewed: number; minutes_studied: number } | null;
 
-  await supabase.from('streaks').upsert({
+  const { error } = await supabase.from('streaks').upsert({
     id: prev?.id,
     date: today,
     cards_reviewed: (prev?.cards_reviewed ?? 0) + cardsReviewed,
     minutes_studied: (prev?.minutes_studied ?? 0) + minutes,
   });
+
+  return error?.message ?? null;
 }
+
+// Las calificaciones se persisten en segundo plano para que un toque nunca espere
+// a la red. La cadena las mantiene en orden, de modo que el upsert de la racha
+// siempre cae despues de las escrituras de tarjeta que contabiliza.
+let writeChain: Promise<void> = Promise.resolve();
+function enqueueWrite(task: () => Promise<void>) {
+  writeChain = writeChain.then(task).catch(() => {});
+}
+
+// Cada startSession lo incrementa: un reporte de error de una sesion vieja se
+// descarta en lugar de aparecer sobre la nueva.
+let sessionToken = 0;
 
 export const useStudyStore = create<StudyState>((set, get) => ({
   phase: 'idle',
@@ -90,9 +107,18 @@ export const useStudyStore = create<StudyState>((set, get) => ({
   reviewed: 0,
   correct: 0,
   sessionStart: 0,
+  error: null,
 
   startSession: async (deckId) => {
-    set({ phase: 'loading', reviewed: 0, correct: 0, retriedIds: [], sessionStart: Date.now() });
+    sessionToken += 1;
+    set({
+      phase: 'loading',
+      reviewed: 0,
+      correct: 0,
+      retriedIds: [],
+      sessionStart: Date.now(),
+      error: null,
+    });
     const { cards, progress } = await fetchDueCards(deckId);
     set({
       phase: cards.length === 0 ? 'done' : 'studying',
@@ -121,10 +147,6 @@ export const useStudyStore = create<StudyState>((set, get) => ({
 
     const newProgress = sm2(existing, rating);
 
-    // Persist
-    await supabase.from('card_progress').upsert({ ...newProgress });
-    await supabase.from('reviews').insert({ card_id: card.id, rating });
-
     const newReviewed = reviewed + 1;
     const newCorrect = correct + (rating >= 3 ? 1 : 0);
 
@@ -139,10 +161,9 @@ export const useStudyStore = create<StudyState>((set, get) => ({
     const nextIndex = currentIndex + 1;
     const isDone = nextIndex >= newQueue.length;
 
-    if (isDone) {
-      await upsertStreak(newReviewed, sessionStart);
-    }
-
+    // Mover la UI de forma sincrona: el toque no debe esperar a la red, y al
+    // salir de la tarjeta (flipped: false, indice avanzado) un toque de mas es
+    // un no-op en vez de una review duplicada.
     set({
       queue: newQueue,
       currentIndex: nextIndex,
@@ -152,6 +173,30 @@ export const useStudyStore = create<StudyState>((set, get) => ({
       correct: newCorrect,
       flipped: false,
       phase: isDone ? 'done' : 'studying',
+    });
+
+    // Persistir despues, en orden, avisando del primer fallo.
+    const token = sessionToken;
+    enqueueWrite(async () => {
+      const errors: string[] = [];
+
+      const { error: progressError } = await supabase
+        .from('card_progress')
+        .upsert({ ...newProgress });
+      if (progressError) errors.push(progressError.message);
+
+      const { error: reviewError } = await supabase
+        .from('reviews')
+        .insert({ card_id: card.id, rating });
+      if (reviewError) errors.push(reviewError.message);
+
+      if (isDone) {
+        const streakError = await upsertStreak(newReviewed, sessionStart);
+        if (streakError) errors.push(streakError);
+      }
+
+      // Descartar el reporte si la sesion se reinicio mientras tanto.
+      if (errors.length > 0 && token === sessionToken) set({ error: errors[0] });
     });
   },
 
@@ -166,5 +211,6 @@ export const useStudyStore = create<StudyState>((set, get) => ({
       reviewed: 0,
       correct: 0,
       sessionStart: 0,
+      error: null,
     }),
 }));
