@@ -66,7 +66,7 @@ export default function RatingButtons({ progress, onRate, suggested, disabled }:
               key={rating}
               onClick={() => onRate(rating)}
               disabled={disabled}
-              className={`relative flex flex-col items-center gap-1 py-3 rounded-xl border-2 bg-white dark:bg-white/5 transition-colors disabled:opacity-40 ${color} ${isSuggested ? 'ring-2 ring-offset-1 ring-current' : ''}`}
+              className={`relative flex flex-col items-center gap-1 py-3 rounded-xl border-2 bg-white dark:bg-white/5 touch-manipulation transition active:scale-95 disabled:opacity-40 ${color} ${isSuggested ? 'ring-2 ring-offset-1 ring-current' : ''}`}
             >
               <span className="text-sm font-semibold">{label}</span>
               <span className="text-[10px] opacity-70">{sub}</span>
