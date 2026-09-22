@@ -111,6 +111,13 @@ export interface CardProgress {
   interval_days: number;
   repetitions: number;
   next_review: string;
+  /**
+   * Sub-day relearning step, as an ISO timestamp. Set when a card is failed
+   * (rating 1 or 2) so it comes back within minutes instead of the next day;
+   * null once the card passes. `next_review` stays the day-granularity
+   * schedule and acts as the fallback if the step is missed.
+   */
+  relearn_at: string | null;
   status: CardStatus;
 }
 

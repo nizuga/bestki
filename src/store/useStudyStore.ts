@@ -26,6 +26,13 @@ interface StudyState {
   reset: () => void;
 }
 
+/** Sort key: [tier, timestamp]. Lower tier studies first. */
+function dueKey(p: CardProgress | undefined): [number, string] {
+  if (!p) return [2, '']; // new cards go last
+  if (p.relearn_at) return [0, p.relearn_at];
+  return [1, p.next_review];
+}
+
 async function fetchDueCards(
   deckId?: string,
 ): Promise<{ cards: AnyCard[]; progress: Record<string, CardProgress> }> {
@@ -51,11 +58,21 @@ async function fetchDueCards(
   }
 
   const today = todayStr();
+  const nowIso = new Date().toISOString();
   const due = cards.filter((card) => {
     const p = progress[card.id];
     if (!p) return true; // new card — always show
     if (p.status === 'suspended') return false;
+    // A card in a relearning step waits for that step, not for the day.
+    if (p.relearn_at) return p.relearn_at <= nowIso;
     return p.next_review <= today;
+  });
+
+  // Relearning cards first (oldest step first), then most overdue, then new.
+  due.sort((a, b) => {
+    const [ta, ka] = dueKey(progress[a.id]);
+    const [tb, kb] = dueKey(progress[b.id]);
+    return ta !== tb ? ta - tb : ka.localeCompare(kb);
   });
 
   return { cards: due, progress };
@@ -142,10 +159,15 @@ export const useStudyStore = create<StudyState>((set, get) => ({
       interval_days: 0,
       repetitions: 0,
       next_review: todayStr(),
+      relearn_at: null,
       status: 'new',
     };
 
-    const newProgress = sm2(existing, rating);
+    // The card gets an immediate second chance inside the session, so only run
+    // SM-2 on the final attempt — otherwise the retry would apply the ease
+    // penalty twice and overwrite the relearning step it just set.
+    const willRequeue = rating < 3 && !retriedIds.includes(card.id);
+    const newProgress = willRequeue ? existing : sm2(existing, rating);
 
     const newReviewed = reviewed + 1;
     const newCorrect = correct + (rating >= 3 ? 1 : 0);
@@ -153,7 +175,7 @@ export const useStudyStore = create<StudyState>((set, get) => ({
     // Re-queue failed cards once per session
     const newQueue = [...queue];
     const newRetriedIds = [...retriedIds];
-    if (rating < 3 && !retriedIds.includes(card.id)) {
+    if (willRequeue) {
       newQueue.push(card);
       newRetriedIds.push(card.id);
     }
@@ -168,7 +190,7 @@ export const useStudyStore = create<StudyState>((set, get) => ({
       queue: newQueue,
       currentIndex: nextIndex,
       retriedIds: newRetriedIds,
-      progress: { ...progress, [card.id]: newProgress },
+      progress: willRequeue ? progress : { ...progress, [card.id]: newProgress },
       reviewed: newReviewed,
       correct: newCorrect,
       flipped: false,
@@ -180,10 +202,12 @@ export const useStudyStore = create<StudyState>((set, get) => ({
     enqueueWrite(async () => {
       const errors: string[] = [];
 
-      const { error: progressError } = await supabase
-        .from('card_progress')
-        .upsert({ ...newProgress });
-      if (progressError) errors.push(progressError.message);
+      if (!willRequeue) {
+        const { error: progressError } = await supabase
+          .from('card_progress')
+          .upsert({ ...newProgress });
+        if (progressError) errors.push(progressError.message);
+      }
 
       const { error: reviewError } = await supabase
         .from('reviews')

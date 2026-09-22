@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sm2 } from './sm2';
+import { sm2, RELEARN_STEP_MINUTES } from './sm2';
 import type { CardProgress } from '@/types';
 
 const NOW = new Date('2026-05-08');
@@ -11,6 +11,7 @@ function makeCard(overrides: Partial<CardProgress> = {}): CardProgress {
     interval_days: 0,
     repetitions: 0,
     next_review: '2026-05-08',
+    relearn_at: null,
     status: 'new',
     ...overrides,
   };
@@ -146,5 +147,44 @@ describe('sm2 — status', () => {
     const result = sm2(card, 1, 180, NOW);
     expect(result.status).toBe('learning');
     expect(result.repetitions).toBe(0);
+  });
+});
+
+describe('sm2 — pasos de reaprendizaje (relearn_at)', () => {
+  it('rating 1 programa el repaso a los 10 minutos', () => {
+    const result = sm2(makeCard({ repetitions: 3, interval_days: 15 }), 1, 180, NOW);
+    expect(result.relearn_at).toBe(new Date(NOW.getTime() + 10 * 60_000).toISOString());
+  });
+
+  it('rating 2 programa el repaso a la hora', () => {
+    const result = sm2(makeCard({ repetitions: 2, interval_days: 6 }), 2, 180, NOW);
+    expect(result.relearn_at).toBe(new Date(NOW.getTime() + 60 * 60_000).toISOString());
+  });
+
+  it('los pasos salen de RELEARN_STEP_MINUTES', () => {
+    for (const rating of [1, 2] as const) {
+      const result = sm2(makeCard(), rating, 180, NOW);
+      const expected = new Date(NOW.getTime() + RELEARN_STEP_MINUTES[rating] * 60_000);
+      expect(result.relearn_at).toBe(expected.toISOString());
+    }
+  });
+
+  it('el paso de reaprendizaje llega antes que next_review', () => {
+    const result = sm2(makeCard(), 1, 180, NOW);
+    // next_review sigue siendo mañana: es la red de seguridad si se pierde el paso.
+    expect(result.next_review).toBe(nextDate(1));
+    expect(result.relearn_at! < `${result.next_review}T00:00:00.000Z`).toBe(true);
+  });
+
+  it('acertar limpia el paso de reaprendizaje', () => {
+    for (const rating of [3, 4] as const) {
+      expect(sm2(makeCard(), rating, 180, NOW).relearn_at).toBeNull();
+    }
+  });
+
+  it('acertar una tarjeta que venía fallada limpia su relearn_at', () => {
+    const failed = sm2(makeCard(), 1, 180, NOW);
+    expect(failed.relearn_at).not.toBeNull();
+    expect(sm2(failed, 3, 180, NOW).relearn_at).toBeNull();
   });
 });

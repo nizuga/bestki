@@ -1,4 +1,4 @@
-import { sm2 } from '@/lib/sm2';
+import { sm2, RELEARN_STEP_MINUTES } from '@/lib/sm2';
 import type { CardProgress, CardRating } from '@/types';
 
 interface Props {
@@ -8,18 +8,16 @@ interface Props {
   disabled?: boolean;
 }
 
-const RATINGS: { rating: CardRating; label: string; color: string; fixedSub?: string }[] = [
+const RATINGS: { rating: CardRating; label: string; color: string }[] = [
   {
     rating: 1,
     label: 'Fallé',
     color: 'border-red-400 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20',
-    fixedSub: '10 min',
   },
   {
     rating: 2,
     label: 'Difícil',
     color: 'border-orange-400 text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20',
-    fixedSub: '1 hora',
   },
   {
     rating: 3,
@@ -41,12 +39,25 @@ function intervalLabel(days: number): string {
   return months === 1 ? '1 mes' : `${months} meses`;
 }
 
+function stepLabel(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  return hours === 1 ? '1 hora' : `${hours} horas`;
+}
+
+/** What the button actually does, read off the algorithm instead of hardcoded. */
+function subLabel(base: CardProgress, rating: CardRating): string {
+  if (rating < 3) return stepLabel(RELEARN_STEP_MINUTES[rating as 1 | 2]);
+  return intervalLabel(sm2(base, rating).interval_days);
+}
+
 const DUMMY_PROGRESS: CardProgress = {
   card_id: '',
   ease_factor: 2.5,
   interval_days: 0,
   repetitions: 0,
   next_review: '',
+  relearn_at: null,
   status: 'new',
 };
 
@@ -57,9 +68,8 @@ export default function RatingButtons({ progress, onRate, suggested, disabled }:
     <div className="space-y-2">
       <p className="text-xs text-center text-gray-400 mb-3">¿Cómo te fue?</p>
       <div className="grid grid-cols-4 gap-2">
-        {RATINGS.map(({ rating, label, color, fixedSub }) => {
-          const next = sm2(base, rating);
-          const sub = fixedSub ?? intervalLabel(next.interval_days);
+        {RATINGS.map(({ rating, label, color }) => {
+          const sub = subLabel(base, rating);
           const isSuggested = suggested === rating;
           return (
             <button
