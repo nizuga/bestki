@@ -46,11 +46,15 @@ State is managed in three Zustand stores under `src/store/`:
 
 ### SM-2 algorithm
 
-`src/lib/sm2.ts` — modified SM-2. Ratings are 1–4 (mapped internally to 0–3). Ratings < 2 reset the card. First repetition with rating 3 gives 4 days; rating 4 gives 1 day (next interval), then 6 days on the second repetition, then `interval * ease_factor`. `ease_factor` is capped at 1.3 minimum.
+`src/lib/sm2.ts` — modified SM-2. Ratings are 1–4 (mapped internally to 0–3). Ratings 1 and 2 reset the card. First repetition with rating 3 gives 4 days; rating 4 gives 1 day (next interval), then 6 days on the second repetition, then `interval * ease_factor`. `ease_factor` is capped at 1.3 minimum.
+
+**Relearning steps.** `next_review` is a `date`, so it cannot express anything shorter than a day. A failing rating therefore also sets `relearn_at` (timestamptz) from `RELEARN_STEP_MINUTES` — 10 min for rating 1, 1 hour for rating 2 — and the card is due again when that timestamp passes, not the next day. `next_review` still lands on tomorrow as the fallback if the step is missed; a passing rating clears `relearn_at` back to null. `RatingButtons` derives its sub-labels from `RELEARN_STEP_MINUTES` and `sm2()` rather than hardcoding them, so they cannot drift from the algorithm again.
+
+A failed card is also re-queued once in-memory for an immediate second chance. SM-2 runs only on the final attempt for a card in a session (`willRequeue` in `useStudyStore.rate()`), so the retry doesn't apply the ease penalty twice or overwrite the step it just set.
 
 ### Supabase tables
 
-`decks`, `cards`, `card_progress`, `reviews`, `streaks`, `streak_freezes`, `settings`, `tags`, `card_tags`. `card_progress` is upserted on every rating; `reviews` gets an insert. No RLS rules are enforced client-side — the client uses the anon key via `src/lib/supabase.ts`.
+`decks`, `cards`, `card_progress`, `reviews`, `streaks`, `streak_freezes`, `settings`, `tags`, `card_tags`. `card_progress` is upserted on every rating; `reviews` gets an insert. Schema lives in `supabase/migrations/`; a card counts as due when `relearn_at <= now()` or, when `relearn_at` is null, `next_review <= current_date`. No RLS rules are enforced client-side — the client uses the anon key via `src/lib/supabase.ts`.
 
 ### Path alias
 
