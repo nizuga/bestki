@@ -214,11 +214,18 @@ function FillBlankCard({ card, submitted, onSubmit }: RendererProps) {
 
 // ── Order Steps ───────────────────────────────────────────────────────────────
 function OrderStepsCard({ card, submitted, onSubmit }: RendererProps) {
-  const { steps } = card.content as unknown as { steps: string[] };
-  const [order, setOrder] = useState<number[]>(() => shuffle(steps.map((_, i) => i)));
+  const { steps, correct_order } = card.content as unknown as {
+    steps: string[];
+    correct_order?: number[];
+  };
+  // Canonical order: index into `steps` that belongs at position i.
+  const canonical = correct_order ?? steps.map((_, i) => i);
+  const [order, setOrder] = useState<number[]>(() => shuffle(canonical.slice()));
+  const [touched, setTouched] = useState(false);
 
   function moveUp(pos: number) {
     if (pos === 0) return;
+    setTouched(true);
     setOrder((o) => {
       const n = [...o];
       [n[pos - 1], n[pos]] = [n[pos], n[pos - 1]];
@@ -227,6 +234,7 @@ function OrderStepsCard({ card, submitted, onSubmit }: RendererProps) {
   }
   function moveDown(pos: number) {
     if (pos === order.length - 1) return;
+    setTouched(true);
     setOrder((o) => {
       const n = [...o];
       [n[pos], n[pos + 1]] = [n[pos + 1], n[pos]];
@@ -237,7 +245,7 @@ function OrderStepsCard({ card, submitted, onSubmit }: RendererProps) {
   return (
     <div className="space-y-2">
       {order.map((stepIdx, pos) => {
-        const isCorrect = submitted && stepIdx === pos;
+        const isCorrect = submitted && stepIdx === canonical[pos];
         return (
           <div
             key={stepIdx}
@@ -274,14 +282,17 @@ function OrderStepsCard({ card, submitted, onSubmit }: RendererProps) {
               </div>
             )}
             {submitted && !isCorrect && (
-              <span className="text-[10px] text-gray-400 flex-shrink-0">→ pos. {stepIdx + 1}</span>
+              <span className="text-[10px] text-gray-400 flex-shrink-0">
+                → pos. {canonical.indexOf(stepIdx) + 1}
+              </span>
             )}
           </div>
         );
       })}
       {!submitted && (
         <button
-          onClick={() => onSubmit(order.every((stepIdx, pos) => stepIdx === pos))}
+          onClick={() => onSubmit(order.every((stepIdx, pos) => stepIdx === canonical[pos]))}
+          disabled={!touched}
           className={verifyBtn}
         >
           Verificar orden
@@ -363,23 +374,28 @@ function MatchPairsCard({ card, submitted, onSubmit }: RendererProps) {
           <p className="text-[10px] text-gray-400 text-center font-semibold uppercase tracking-wide">
             Columna B
           </p>
-          {shuffledRight.map((originalIdx, shuffledIdx) => (
-            <button
-              key={shuffledIdx}
-              onClick={() => clickRight(shuffledIdx)}
-              className={`w-full py-2 px-3 rounded-lg border-2 text-xs text-left transition-colors ${
-                submitted
-                  ? 'border-gray-200 dark:border-white/10 opacity-60'
-                  : matches.includes(shuffledIdx)
-                    ? 'border-primary-300 opacity-60'
-                    : selectedLeft !== null
-                      ? 'border-primary-400 hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 cursor-pointer'
-                      : 'border-gray-200 dark:border-white/10'
-              }`}
-            >
-              {right[originalIdx]}
-            </button>
-          ))}
+          {shuffledRight.map((originalIdx, shuffledIdx) => {
+            const matchedFromLeft = matches.findIndex((v) => v === shuffledIdx);
+            const isCorrectHere = matchedFromLeft === originalIdx;
+            let cls = 'w-full py-2 px-3 rounded-lg border-2 text-xs text-left transition-colors ';
+            if (submitted) {
+              if (matchedFromLeft === -1) cls += 'border-gray-200 dark:border-white/10 opacity-50';
+              else if (isCorrectHere) cls += 'border-green-400 bg-green-50 dark:bg-green-900/20';
+              else cls += 'border-red-400 bg-red-50 dark:bg-red-900/20';
+            } else if (matches.includes(shuffledIdx)) {
+              cls += 'border-primary-300 opacity-60';
+            } else if (selectedLeft !== null) {
+              cls +=
+                'border-primary-400 hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 cursor-pointer';
+            } else {
+              cls += 'border-gray-200 dark:border-white/10';
+            }
+            return (
+              <button key={shuffledIdx} onClick={() => clickRight(shuffledIdx)} className={cls}>
+                {right[originalIdx]}
+              </button>
+            );
+          })}
         </div>
       </div>
       {!submitted && (

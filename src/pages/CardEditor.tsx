@@ -571,12 +571,40 @@ export default function CardEditor() {
   const validate = (): string | null => {
     if (!selectedDeckId) return 'Selecciona un mazo.';
     if (!question.trim()) return 'La pregunta no puede estar vacía.';
-    if (cardType === 'flashcard' && !content.back.trim())
-      return 'La respuesta no puede estar vacía.';
-    if (cardType === 'multiple_choice' && content.correct.length === 0)
-      return 'Marca al menos una opción correcta.';
-    if (cardType === 'fill_blank' && !content.template.trim())
-      return 'Escribe la plantilla con los huecos (___).';
+
+    switch (cardType) {
+      case 'flashcard':
+        if (!content.back.trim()) return 'La respuesta no puede estar vacía.';
+        break;
+      case 'multiple_choice':
+        if (content.options.some((o) => !o.trim())) return 'Todas las opciones deben tener texto.';
+        if (content.correct.length === 0) return 'Marca al menos una opción correcta.';
+        break;
+      case 'written':
+        if (content.accepted_answers.every((a) => !a.trim()))
+          return 'Agrega al menos una respuesta aceptada.';
+        break;
+      case 'fill_blank':
+        if (!content.template.trim()) return 'Escribe la plantilla con los huecos (___).';
+        if (content.fill_blanks.length === 0) return 'La plantilla debe incluir al menos un ___.';
+        if (content.fill_blanks.some((b) => !b.answer.trim()))
+          return 'Completa la respuesta de cada hueco.';
+        break;
+      case 'order_steps':
+        if (content.steps.filter((s) => s.trim()).length < 2)
+          return 'Agrega al menos 2 pasos no vacíos.';
+        break;
+      case 'match_pairs':
+        if (content.left.length < 2) return 'Agrega al menos 2 pares.';
+        if (content.left.some((l, i) => !l.trim() || !content.right[i]?.trim()))
+          return 'Todos los pares deben tener ambos lados completos.';
+        break;
+      case 'predict_output':
+        if (!content.code.trim()) return 'Escribe el código.';
+        if (!content.expected_output.trim()) return 'Indica la salida esperada.';
+        break;
+    }
+
     return null;
   };
 
@@ -612,7 +640,8 @@ export default function CardEditor() {
         setSaving(false);
         return;
       }
-      navigate(deckId ? `/decks` : (-1 as never));
+      if (deckId) navigate('/decks');
+      else navigate(-1);
     }
   };
 

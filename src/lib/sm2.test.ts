@@ -19,7 +19,10 @@ function makeCard(overrides: Partial<CardProgress> = {}): CardProgress {
 function nextDate(days: number): string {
   const d = new Date('2026-05-08');
   d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 describe('sm2 — fallos (rating 1 y 2)', () => {

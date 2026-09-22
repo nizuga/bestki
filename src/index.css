@@ -6,6 +6,12 @@
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
   }
+
+  /* Alto real de la barra inferior fija (h-16 + safe area) + un respiro, para que
+     el contenido del final de la página nunca quede debajo del <nav>. */
+  .pb-nav {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom) + 1rem);
+  }
 }
 
 @layer base {

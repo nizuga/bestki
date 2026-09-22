@@ -33,7 +33,7 @@ State is managed in three Zustand stores under `src/store/`:
 
 ### Study session lifecycle
 
-`useStudyStore.startSession(deckId?)` fetches due cards from Supabase (new cards + cards where `next_review <= today`). The session queue is an in-memory array; failed cards (rating < 3) are re-appended once per session (`retriedIds` prevents re-appending twice). When the queue is exhausted, `upsertStreak` writes to the `streaks` table. The `flipped` flag doubles as "submitted" — both flashcards and interactive card types set it to `true` to reveal feedback and unlock the rating buttons.
+`useStudyStore.startSession(deckId?)` fetches due cards from Supabase (new cards + cards where `next_review <= today`) and orders them most-overdue-first, with brand-new cards at the end. The session queue is an in-memory array; failed cards (rating < 3) are re-appended once per session (`retriedIds` prevents re-appending twice). On the first failed pass only a `reviews` row is logged — `card_progress` is updated only on the final attempt for the card this session, so SM-2 never runs on top of its own output. When the queue is exhausted, `upsertStreak` writes to the `streaks` table (using `onConflict: 'date'`). The `flipped` flag doubles as "submitted" — both flashcards and interactive card types set it to `true` to reveal feedback and unlock the rating buttons.
 
 ### Card types
 
@@ -46,7 +46,7 @@ State is managed in three Zustand stores under `src/store/`:
 
 ### SM-2 algorithm
 
-`src/lib/sm2.ts` — modified SM-2. Ratings are 1–4 (mapped internally to 0–3). Ratings < 2 reset the card. First repetition with rating 3 gives 4 days; rating 4 gives 1 day (next interval), then 6 days on the second repetition, then `interval * ease_factor`. `ease_factor` is capped at 1.3 minimum.
+`src/lib/sm2.ts` — modified SM-2. Ratings are 1–4 (mapped internally to 0–3 via `q = rating - 1`). Raw ratings 1 and 2 reset the card to `interval_days = 1`, `repetitions = 0`. On the first successful repetition (`repetitions === 0`), rating 4 gives a 4-day interval and rating 3 gives 1 day; the second successful repetition gives 6 days; subsequent successes give `round(interval_days * ease_factor)`. `ease_factor` is floored at 1.3 and `interval_days` is clamped by `maxIntervalDays` (default 180). Dates are formatted in **local time** (not UTC) to stay consistent with `useStudyStore.todayStr` and `streak.ts`.
 
 ### Supabase tables
 

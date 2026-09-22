@@ -21,6 +21,7 @@ export default function Study() {
     flipped,
     reviewed,
     correct,
+    error,
     startSession,
     flip,
     rate,
@@ -133,6 +134,7 @@ export default function Study() {
       {/* Card — flashcard uses flip UI; other types use interactive renderer */}
       {isFlashcard ? (
         <FlashCard
+          key={`${card.id}-${currentIndex}`}
           question={card.question}
           answer={(card.content as { back: string }).back}
           flipped={flipped}
@@ -140,7 +142,12 @@ export default function Study() {
         />
       ) : (
         <div className="bg-white dark:bg-white/5 rounded-2xl p-4 shadow-sm">
-          <CardRenderer card={card} submitted={flipped} onSubmit={handleSubmit} />
+          <CardRenderer
+            key={`${card.id}-${currentIndex}`}
+            card={card}
+            submitted={flipped}
+            onSubmit={handleSubmit}
+          />
         </div>
       )}
 
@@ -148,6 +155,14 @@ export default function Study() {
       {flipped && card.explanation && (
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 rounded-xl px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
           💡 {card.explanation}
+        </div>
+      )}
+
+      {/* Persistence failure — the session keeps going, but progress wasn't saved */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-xl px-4 py-3 text-sm text-red-700 dark:text-red-200">
+          ⚠️ No se pudo guardar el progreso. Revisa tu conexión — puede que tengas que repasar estas
+          tarjetas de nuevo.
         </div>
       )}
 

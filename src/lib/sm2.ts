@@ -3,7 +3,10 @@ import type { CardProgress, CardRating } from '@/types';
 function addDays(date: Date, days: number): string {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
-  return result.toISOString().split('T')[0];
+  const y = result.getFullYear();
+  const m = String(result.getMonth() + 1).padStart(2, '0');
+  const d = String(result.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 export function sm2(
